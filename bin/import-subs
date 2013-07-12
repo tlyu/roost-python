@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
         'lib'))
 import roost
-from krb5_ctypes import *
+import krb5
 
 def macro_sub(s):
     # TODO(davidben): Do we care about %host% and %canon%. I think no.
@@ -52,29 +52,10 @@ def main(args):
         all_subs.extend(parse_subsfile(arg))
     print all_subs
 
-    ctx = krb5_context()
-    ccache = krb5_ccache()
-    principal = krb5_principal()
-    name = ctypes.c_char_p()
-
-    def check_err(ret):
-        if ret:
-            msg_c = krb5_get_error_message(ctx, ret)
-            msg = msg_c.value
-            krb5_free_error_message(ctx, msg_c)
-            raise Exception(msg)
-
-    check_err(krb5_init_context(ctx))
-    check_err(krb5_cc_default(ctx, ccache))
-    check_err(krb5_cc_get_principal(ctx, ccache, principal))
-    check_err(krb5_unparse_name(ctx, principal, name))
-
-    print name.value
-
-    krb5_free_unparsed_name(ctx, name)
-    krb5_free_principal(ctx, principal)
-    check_err(krb5_cc_close(ctx, ccache))
-    krb5_free_context(ctx)
+    ctx = krb5.Context()
+    ccache = ctx.cc_default()
+    principal = ccache.get_principal()
+    print principal.unparse_name()
 
     return 0
 
