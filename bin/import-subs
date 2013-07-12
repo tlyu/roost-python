@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import optparse
 import os.path
 import sys
 
@@ -7,3 +8,49 @@ sys.path.insert(0, os.path.join(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
         'lib'))
 import roost
+
+def macro_sub(s):
+    # TODO(davidben): Do we care about %host% and %canon%. I think no.
+    return s.replace('%me%', 'TODO:ZGetSender')
+
+def parse_subsfile(path):
+    # Modelled after zwgc's parser.
+    with open(path) as f:
+        ret = []
+        for line in f:
+            idx = line.find('#')
+            if idx >= 0:
+                line = line[:idx]
+            line = line.strip(' \n')
+            klass, inst, recip = line.split(',', 2)
+            # Punt punts and unsubs.
+            if klass and klass[0] in ('!', '-'):
+                continue
+            # Eh. Let's do all of them.
+            klass = macro_sub(klass)
+            inst = macro_sub(inst)
+            recip = macro_sub(recip)
+            # This is normally done in ZSubscribeTo, but roost won't
+            # allow it:
+            if recip and recip[0] == '*':
+                recip = recip[1:]
+            ret.append((klass, inst, recip))
+        return ret
+
+def main(args):
+    parser = optparse.OptionParser(
+        usage='Usage: %prog [OPTIONS] [FILES]')
+    parser.add_option('--server', default=roost.DEFAULT_SERVER,
+                      help='Roost backend server (default: %default)')
+    (options, args) = parser.parse_args()
+
+    args = args or [os.path.expanduser('~/.zephyr.subs')]
+    all_subs = []
+    for arg in args:
+        all_subs.extend(parse_subsfile(arg))
+    print all_subs
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
