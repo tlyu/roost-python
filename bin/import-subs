@@ -53,28 +53,27 @@ def main(args):
     print all_subs
 
     ctx = krb5_context()
-    ret = krb5_init_context(ctx)
-    print ret
-
     ccache = krb5_ccache()
-    ret = krb5_cc_default(ctx, ccache)
-    print ret
-
     principal = krb5_principal()
-    ret = krb5_cc_get_principal(ctx, ccache, principal)
-    print ret
-
     name = ctypes.c_char_p()
-    ret = krb5_unparse_name(ctx, principal, name)
-    print ret
+
+    def check_err(ret):
+        if ret:
+            msg_c = krb5_get_error_message(ctx, ret)
+            msg = msg_c.value
+            krb5_free_error_message(ctx, msg_c)
+            raise Exception(msg)
+
+    check_err(krb5_init_context(ctx))
+    check_err(krb5_cc_default(ctx, ccache))
+    check_err(krb5_cc_get_principal(ctx, ccache, principal))
+    check_err(krb5_unparse_name(ctx, principal, name))
+
     print name.value
 
     krb5_free_unparsed_name(ctx, name)
     krb5_free_principal(ctx, principal)
-
-    ret = krb5_cc_close(ctx, ccache)
-    print ret
-
+    check_err(krb5_cc_close(ctx, ccache))
     krb5_free_context(ctx)
 
     return 0

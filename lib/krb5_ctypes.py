@@ -27,6 +27,9 @@ class krb5_principal_data(ctypes.Structure):
 krb5_principal = ctypes.POINTER(krb5_principal_data)
 krb5_const_principal = ctypes.POINTER(krb5_principal_data)
 
+# Don't do the conversion on return.
+class _c_char_p_noconv(ctypes.c_char_p): pass
+
 # Functions
 krb5_init_context = libkrb5.krb5_init_context
 krb5_init_context.restype = krb5_error_code
@@ -63,3 +66,11 @@ krb5_unparse_name.argtypes = (krb5_context,
 krb5_free_unparsed_name = libkrb5.krb5_free_unparsed_name
 krb5_free_unparsed_name.restype = None
 krb5_free_unparsed_name.argtypes = (krb5_context, ctypes.c_char_p)
+
+krb5_get_error_message = libkrb5.krb5_get_error_message
+krb5_get_error_message.restype = _c_char_p_noconv
+krb5_get_error_message.argtypes = (krb5_context, krb5_error_code)
+
+krb5_free_error_message = libkrb5.krb5_free_error_message
+krb5_free_error_message.restype = None
+krb5_free_error_message.argtypes = (krb5_context, ctypes.c_char_p)
