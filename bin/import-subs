@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import ctypes
 import optparse
 import os.path
 import sys
