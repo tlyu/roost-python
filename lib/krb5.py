@@ -84,7 +84,10 @@ class Context(object):
     def decode_ticket(self, data):
         data = to_str(data)
         data_c = krb5_ctypes.krb5_data()
-        data_c.data = ctypes.POINTER(ctypes.c_char)(data)
+        # Why do I need this dance...
+        data_c.data = ctypes.cast(
+            ctypes.c_char_p(data),
+            ctypes.POINTER(ctypes.c_char))
         data_c.length = len(data)
         return self._decode_ticket(data_c)
 
