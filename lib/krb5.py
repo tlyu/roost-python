@@ -34,6 +34,14 @@ krb5_cc_get_principal = check_error(krb5_ctypes.krb5_cc_get_principal)
 krb5_free_principal = check_error(krb5_ctypes.krb5_free_principal)
 krb5_unparse_name = check_error(krb5_ctypes.krb5_unparse_name)
 krb5_free_unparsed_name = check_error(krb5_ctypes.krb5_free_unparsed_name)
+krb5_build_principal = check_error(krb5_ctypes.krb5_build_principal)
+
+def to_str(obj):
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, unicode):
+        return obj.encode('utf-8')
+    raise TypeError('Expected string')
 
 class Context(object):
     def __init__(self):
@@ -48,6 +56,19 @@ class Context(object):
         ccache = CCache(self)
         krb5_cc_default(self._handle, ccache._handle)
         return ccache
+
+    def build_principal(self, realm, name):
+        realm = to_str(realm)
+        name = [to_str(comp) for comp in name]
+        principal = Principal(self)
+        name_args = [ctypes.c_char_p(comp) for comp in name]
+        name_args.append(ctypes.c_char_p())
+        krb5_build_principal(self._handle,
+                             principal._handle,
+                             len(realm),
+                             ctypes.c_char_p(realm),
+                             *name_args)
+        return principal
 
 class CCache(object):
     def __init__(self, ctx):
@@ -80,3 +101,9 @@ class Principal(object):
         name = name_c.value
         krb5_free_unparsed_name(self._ctx._handle, name_c)
         return name
+
+    def __str__(self):
+        return self.unparse_name()
+
+    def __repr__(self):
+        return '<%s: %s>' % (self.__class__.__name__, self.unparse_name())

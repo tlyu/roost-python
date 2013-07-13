@@ -7,6 +7,13 @@ libkrb5 = ctypes.cdll.LoadLibrary("libkrb5.so.3")
 krb5_int32 = ctypes.c_int32
 krb5_error_code = krb5_int32
 krb5_magic = krb5_error_code
+krb5_flags = krb5_int32
+krb5_enctype = krb5_int32
+krb5_octet = ctypes.c_ubyte
+krb5_timestamp = krb5_int32
+krb5_boolean = ctypes.c_uint
+krb5_addrtype = krb5_int32
+krb5_authdatatype = krb5_int32
 
 class _krb5_context(ctypes.Structure): pass
 krb5_context = ctypes.POINTER(_krb5_context)
@@ -26,6 +33,43 @@ class krb5_principal_data(ctypes.Structure):
                 ('type', krb5_int32)]
 krb5_principal = ctypes.POINTER(krb5_principal_data)
 krb5_const_principal = ctypes.POINTER(krb5_principal_data)
+
+class krb5_keyblock(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('enctype', krb5_enctype),
+                ('length', ctypes.c_uint),
+                ('contents', ctypes.POINTER(krb5_octet))]
+
+class krb5_ticket_times(ctypes.Structure):
+    _fields_ = [('authtime', krb5_timestamp),
+                ('starttime', krb5_timestamp),
+                ('endtime', krb5_timestamp),
+                ('renew_till', krb5_timestamp)]
+
+class krb5_address(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('addrtype', krb5_addrtype),
+                ('length', ctypes.c_uint),
+                ('contents', ctypes.POINTER(krb5_octet))]
+
+class krb5_authdata(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('ad_type', krb5_authdatatype),
+                ('length', ctypes.c_uint),
+                ('contents', ctypes.POINTER(krb5_octet))]
+
+class krb5_creds(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('client', krb5_principal),
+                ('server', krb5_principal),
+                ('keyblock', krb5_keyblock),
+                ('times', krb5_ticket_times),
+                ('is_skey', krb5_boolean),
+                ('ticket_flags', krb5_flags),
+                ('addresses', ctypes.POINTER(ctypes.POINTER(krb5_address))),
+                ('ticket', krb5_data),
+                ('second_ticket', krb5_data),
+                ('authdata', ctypes.POINTER(ctypes.POINTER(krb5_authdata)))]
 
 # Don't do the conversion on return.
 class _c_char_p_noconv(ctypes.c_char_p): pass
@@ -74,3 +118,12 @@ krb5_get_error_message.argtypes = (krb5_context, krb5_error_code)
 krb5_free_error_message = libkrb5.krb5_free_error_message
 krb5_free_error_message.restype = None
 krb5_free_error_message.argtypes = (krb5_context, ctypes.c_char_p)
+
+krb5_build_principal = libkrb5.krb5_build_principal
+krb5_build_principal.restype = krb5_error_code
+# This takes varargs. Supposedly things using the C calling convention
+# can take extra args in ctypes?
+krb5_build_principal.argtypes = (krb5_context,
+                                 ctypes.POINTER(krb5_principal),
+                                 ctypes.c_uint,
+                                 ctypes.POINTER(ctypes.c_char))
