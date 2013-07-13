@@ -57,6 +57,10 @@ def main(args):
     principal = ccache.get_principal()
     print principal.unparse_name()
 
+    zephyr = ctx.build_principal('ATHENA.MIT.EDU', ['zephyr', 'zephyr'])
+    creds = ccache.get_credentials(principal, zephyr)
+    print creds.to_dict()
+
     return 0
 
 if __name__ == '__main__':

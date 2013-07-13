@@ -1,3 +1,4 @@
+import base64
 import ctypes
 import functools
 
@@ -137,3 +138,34 @@ class Credentials(object):
     def __del__(self):
         if bool(self._handle):
             krb5_free_creds(self._ctx._handle, self._handle)
+
+    def to_dict(self):
+        # TODO(davidben): More sensible would be to put this format
+        # into roost.py and expose all the attributes in the public
+        # API. But whatever.
+        ret = { }
+        client_data = self._handle.contents.client.contents
+        ret['crealm'] = client_data.realm.as_str()
+        ret['cname'] = [client_data.data[i].as_str()
+                        for i in xrange(client_data.length)]
+        # TODO: ret['ticket'] = 'FIXME!!!'
+        keyblock = self._handle.contents.keyblock
+        ret['key'] = {
+            'keytype': keyblock.enctype,
+            'keyvalue': base64.b64encode(keyblock.contents_as_str())
+        }
+        ret['flags'] = self._handle.contents.ticket_flags
+        # Webathena times are milliseconds, Kerberos uses seconds
+        ret['authtime'] = self._handle.contents.times.authtime * 1000
+        if self._handle.contents.times.starttime:
+            ret['starttime'] = self._handle.contents.times.starttime * 1000
+        ret['endtime'] = self._handle.contents.times.endtime * 1000
+        if self._handle.contents.times.renew_till:
+            ret['renewTill'] = self._handle.contents.times.renew_till * 1000
+        server_data = self._handle.contents.server.contents
+        ret['srealm'] = server_data.realm.as_str()
+        ret['sname'] = [server_data.data[i].as_str()
+                        for i in xrange(server_data.length)]
+        # TODO: caddr
+
+        return ret

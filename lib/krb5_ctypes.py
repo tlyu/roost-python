@@ -29,6 +29,9 @@ class krb5_data(ctypes.Structure):
                 ('length', ctypes.c_uint),
                 ('data', ctypes.POINTER(ctypes.c_char))]
 
+    def as_str(self):
+        return ctypes.string_at(self.data, self.length)
+
 class krb5_principal_data(ctypes.Structure):
     _fields_ = [('magic', krb5_magic),
                 ('realm', krb5_data),
@@ -43,6 +46,8 @@ class krb5_keyblock(ctypes.Structure):
                 ('enctype', krb5_enctype),
                 ('length', ctypes.c_uint),
                 ('contents', ctypes.POINTER(krb5_octet))]
+    def contents_as_str(self):
+        return ctypes.string_at(self.contents, self.length)
 
 class krb5_ticket_times(ctypes.Structure):
     _fields_ = [('authtime', krb5_timestamp),
