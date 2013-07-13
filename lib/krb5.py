@@ -35,6 +35,8 @@ krb5_free_principal = check_error(krb5_ctypes.krb5_free_principal)
 krb5_unparse_name = check_error(krb5_ctypes.krb5_unparse_name)
 krb5_free_unparsed_name = check_error(krb5_ctypes.krb5_free_unparsed_name)
 krb5_build_principal = check_error(krb5_ctypes.krb5_build_principal)
+krb5_get_credentials = check_error(krb5_ctypes.krb5_get_credentials)
+krb5_free_creds = check_error(krb5_ctypes.krb5_free_creds)
 
 def to_str(obj):
     if isinstance(obj, str):
@@ -86,6 +88,25 @@ class CCache(object):
                               principal._handle)
         return principal
 
+    def get_credentials(self, client, server,
+                        cache_only=False,
+                        user_to_user=False):
+        flags = 0
+        if cache_only:
+            flags |= krb5_ctypes.KRB5_GC_CACHED
+        if user_to_user:
+            flags |= krb5_ctypes.KRB5_GC_USER_USER
+
+        in_creds = krb5_ctypes.krb5_creds()
+        in_creds.client = client._handle
+        in_creds.server = server._handle
+        # TODO(davidben): If we care, pass in parameters for the other
+        # options too.
+        creds = Credentials(self._ctx)
+        krb5_get_credentials(self._ctx._handle, flags, self._handle, in_creds,
+                             creds._handle)
+        return creds
+
 class Principal(object):
     def __init__(self, ctx):
         self._ctx = ctx
@@ -107,3 +128,12 @@ class Principal(object):
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self.unparse_name())
+
+class Credentials(object):
+    def __init__(self, ctx):
+        self._ctx = ctx
+        self._handle = krb5_ctypes.krb5_creds_ptr()
+
+    def __del__(self):
+        if bool(self._handle):
+            krb5_free_creds(self._ctx._handle, self._handle)

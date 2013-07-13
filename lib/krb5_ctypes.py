@@ -3,6 +3,10 @@ import ctypes
 # Library
 libkrb5 = ctypes.cdll.LoadLibrary("libkrb5.so.3")
 
+# Constants
+KRB5_GC_USER_USER = 1
+KRB5_GC_CACHED = 2
+
 # Types
 krb5_int32 = ctypes.c_int32
 krb5_error_code = krb5_int32
@@ -70,6 +74,7 @@ class krb5_creds(ctypes.Structure):
                 ('ticket', krb5_data),
                 ('second_ticket', krb5_data),
                 ('authdata', ctypes.POINTER(ctypes.POINTER(krb5_authdata)))]
+krb5_creds_ptr = ctypes.POINTER(krb5_creds)
 
 # Don't do the conversion on return.
 class _c_char_p_noconv(ctypes.c_char_p): pass
@@ -127,3 +132,15 @@ krb5_build_principal.argtypes = (krb5_context,
                                  ctypes.POINTER(krb5_principal),
                                  ctypes.c_uint,
                                  ctypes.POINTER(ctypes.c_char))
+
+krb5_get_credentials = libkrb5.krb5_get_credentials
+krb5_get_credentials.restype = krb5_error_code
+krb5_get_credentials.argtypes = (krb5_context,
+                                 krb5_flags,
+                                 krb5_ccache,
+                                 krb5_creds_ptr,
+                                 ctypes.POINTER(krb5_creds_ptr))
+
+krb5_free_creds = libkrb5.krb5_free_creds
+krb5_free_creds.restype = None
+krb5_free_creds.argtypes = (krb5_context, krb5_creds_ptr)
