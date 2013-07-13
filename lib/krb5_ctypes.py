@@ -18,6 +18,7 @@ krb5_timestamp = krb5_int32
 krb5_boolean = ctypes.c_uint
 krb5_addrtype = krb5_int32
 krb5_authdatatype = krb5_int32
+krb5_kvno = ctypes.c_uint
 
 class _krb5_context(ctypes.Structure): pass
 krb5_context = ctypes.POINTER(_krb5_context)
@@ -60,6 +61,8 @@ class krb5_address(ctypes.Structure):
                 ('addrtype', krb5_addrtype),
                 ('length', ctypes.c_uint),
                 ('contents', ctypes.POINTER(krb5_octet))]
+    def contents_as_str(self):
+        return ctypes.string_at(self.contents, self.length)
 
 class krb5_authdata(ctypes.Structure):
     _fields_ = [('magic', krb5_magic),
@@ -80,6 +83,22 @@ class krb5_creds(ctypes.Structure):
                 ('second_ticket', krb5_data),
                 ('authdata', ctypes.POINTER(ctypes.POINTER(krb5_authdata)))]
 krb5_creds_ptr = ctypes.POINTER(krb5_creds)
+
+class krb5_enc_data(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('enctype', krb5_enctype),
+                ('kvno', krb5_kvno),
+                ('ciphertext', krb5_data)]
+
+# Transcribe this later if we ever care about it.
+class krb5_enc_tkt_part(ctypes.Structure): pass
+
+class krb5_ticket(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('server', krb5_principal),
+                ('enc_part', krb5_enc_data),
+                ('enc_part2', krb5_enc_tkt_part)]
+krb5_ticket_ptr = ctypes.POINTER(krb5_ticket)
 
 # Don't do the conversion on return.
 class _c_char_p_noconv(ctypes.c_char_p): pass
@@ -149,3 +168,12 @@ krb5_get_credentials.argtypes = (krb5_context,
 krb5_free_creds = libkrb5.krb5_free_creds
 krb5_free_creds.restype = None
 krb5_free_creds.argtypes = (krb5_context, krb5_creds_ptr)
+
+krb5_decode_ticket = libkrb5.krb5_decode_ticket
+krb5_decode_ticket.restype = krb5_error_code
+krb5_decode_ticket.argtypes = (ctypes.POINTER(krb5_data),
+                               ctypes.POINTER(krb5_ticket_ptr))
+
+krb5_free_ticket = libkrb5.krb5_free_ticket
+krb5_free_ticket.restype = None
+krb5_free_ticket.argtypes = (krb5_context, krb5_ticket_ptr)

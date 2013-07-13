@@ -38,6 +38,14 @@ krb5_free_unparsed_name = check_error(krb5_ctypes.krb5_free_unparsed_name)
 krb5_build_principal = check_error(krb5_ctypes.krb5_build_principal)
 krb5_get_credentials = check_error(krb5_ctypes.krb5_get_credentials)
 krb5_free_creds = check_error(krb5_ctypes.krb5_free_creds)
+krb5_free_ticket = check_error(krb5_ctypes.krb5_free_ticket)
+
+# This one is weird and takes no context. But the free function does??
+def krb5_decode_ticket(*args):
+    ret = krb5_ctypes.krb5_decode_ticket(*args)
+    if ret:
+        raise Error(krb5_ctypes.krb5_context(), ret)
+    return ret
 
 def to_str(obj):
     if isinstance(obj, str):
@@ -72,6 +80,18 @@ class Context(object):
                              ctypes.c_char_p(realm),
                              *name_args)
         return principal
+
+    def decode_ticket(self, data):
+        data = to_str(data)
+        data_c = krb5_ctypes.krb5_data()
+        data_c.data = ctypes.POINTER(ctypes.c_char)(data)
+        data_c.length = len(data)
+        return self._decode_ticket(data_c)
+
+    def _decode_ticket(self, data_c):
+        ticket = Ticket(self)
+        krb5_decode_ticket(data_c, ticket._handle)
+        return ticket
 
 class CCache(object):
     def __init__(self, ctx):
@@ -139,6 +159,12 @@ class Credentials(object):
         if bool(self._handle):
             krb5_free_creds(self._ctx._handle, self._handle)
 
+    def decode_ticket(self):
+        return self._ctx._decode_ticket(self._handle.contents.ticket)
+    def decode_second_ticket(self):
+        return self._ctx._decode_second_ticket(
+            self._handle.contents.second_ticket)
+
     def to_dict(self):
         # TODO(davidben): More sensible would be to put this format
         # into roost.py and expose all the attributes in the public
@@ -148,7 +174,7 @@ class Credentials(object):
         ret['crealm'] = client_data.realm.as_str()
         ret['cname'] = [client_data.data[i].as_str()
                         for i in xrange(client_data.length)]
-        # TODO: ret['ticket'] = 'FIXME!!!'
+        ret['ticket'] = self.decode_ticket().to_dict()
         keyblock = self._handle.contents.keyblock
         ret['key'] = {
             'keytype': keyblock.enctype,
@@ -166,6 +192,39 @@ class Credentials(object):
         ret['srealm'] = server_data.realm.as_str()
         ret['sname'] = [server_data.data[i].as_str()
                         for i in xrange(server_data.length)]
-        # TODO: caddr
+        addrs = []
+        i = 0
+        while bool(self._handle.contents.addresses[i]):
+            addr = self._handle.contents.addresses[i].contents
+            addrs.append({
+                    'addrType': addr.addrtype,
+                    'address': addr.contents_as_str()
+            })
+        if addrs:
+            ret['caddr'] = addrs
 
+        return ret
+
+class Ticket(object):
+    def __init__(self, ctx):
+        self._ctx = ctx
+        self._handle = krb5_ctypes.krb5_ticket_ptr()
+
+    def __del__(self):
+        if bool(self._handle):
+            krb5_free_ticket(self._ctx._handle, self._handle)
+
+    def to_dict(self):
+        ret = { }
+        ret['tktVno'] = 5
+        server_data = self._handle.contents.server.contents
+        ret['realm'] = server_data.realm.as_str()
+        ret['sname'] = [server_data.data[i].as_str()
+                        for i in xrange(server_data.length)]
+        ret['encPart'] = {
+            'kvno': self._handle.contents.enc_part.kvno,
+            'etype': self._handle.contents.enc_part.enctype,
+            'cipher': base64.b64encode(
+                self._handle.contents.enc_part.ciphertext.as_str()),
+        }
         return ret
