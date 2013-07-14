@@ -7,8 +7,8 @@ import sys
 sys.path.insert(0, os.path.join(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
         'lib'))
-import roost
 import krb5
+import roost
 
 def macro_sub(s, sender):
     # TODO(davidben): Do we care about %host% and %canon%. I think no.
@@ -38,27 +38,49 @@ def parse_subsfile(path, sender):
             ret.append((klass, inst, recip))
         return ret
 
+def zuser_is_personal(recip):
+    return recip and recip[0] == '@'
+
 def main(args):
     parser = optparse.OptionParser(
         usage='Usage: %prog [OPTIONS] [FILES]')
     parser.add_option('--server', default=roost.DEFAULT_SERVER,
                       help='Roost backend server (default: %default)')
+    parser.add_option('--service', default=roost.DEFAULT_SERVICE,
+                      help='Service name (default: %default)')
     (options, args) = parser.parse_args()
 
+    # Get the default principal.
     ctx = krb5.Context()
     ccache = ctx.cc_default()
     principal = ccache.get_principal()
-    print principal.unparse_name()
+    principal_str = principal.unparse_name()
 
+    # Parse out the subs files.
     args = args or [os.path.expanduser('~/.zephyr.subs')]
     all_subs = []
     for arg in args:
-        all_subs.extend(parse_subsfile(arg, principal.unparse_name()))
-    print all_subs
+        all_subs.extend(parse_subsfile(arg, principal_str))
+    print 'Found %d subs' % (len(all_subs),)
 
-    zephyr = ctx.build_principal('ATHENA.MIT.EDU', ['zephyr', 'zephyr'])
-    creds = ccache.get_credentials(principal, zephyr)
-    print creds.to_dict()
+    data = {
+        'subscriptions': [{ 'class': s[0],
+                            'instance': s[1],
+                            'recipient': s[2] }
+                          for s in all_subs],
+    }
+    # Staple zephyr creds.
+    if any(zuser_is_personal(s[2]) for s in all_subs):
+        zephyr = ctx.build_principal('ATHENA.MIT.EDU', ['zephyr', 'zephyr'])
+        creds = ccache.get_credentials(principal, zephyr)
+        data['credentials'] = creds.to_dict()
+
+    # Get an auth token.
+    token, _expires = roost.get_auth_token(options, principal_str)
+    # And subscribe.
+    roost.post(options, token, '/v1/subscribe', data)
+
+    print 'Subscribed'
 
     return 0
 
