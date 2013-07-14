@@ -183,7 +183,9 @@ class Credentials(object):
             'keytype': keyblock.enctype,
             'keyvalue': base64.b64encode(keyblock.contents_as_str())
         }
-        ret['flags'] = self._handle.contents.ticket_flags
+        flags = self._handle.contents.ticket_flags
+        ret['flags'] = [(1 if (flags & (1 << (31 - i))) else 0)
+                        for i in range(32)]
         # Webathena times are milliseconds, Kerberos uses seconds
         ret['authtime'] = self._handle.contents.times.authtime * 1000
         if self._handle.contents.times.starttime:
