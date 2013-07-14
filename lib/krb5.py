@@ -175,8 +175,11 @@ class Credentials(object):
         ret = { }
         client_data = self._handle.contents.client.contents
         ret['crealm'] = client_data.realm.as_str()
-        ret['cname'] = [client_data.data[i].as_str()
-                        for i in xrange(client_data.length)]
+        ret['cname'] = {
+            'nameType': client_data.type,
+            'nameString': [client_data.data[i].as_str()
+                           for i in xrange(client_data.length)],
+            }
         ret['ticket'] = self.decode_ticket().to_dict()
         keyblock = self._handle.contents.keyblock
         ret['key'] = {
@@ -195,8 +198,11 @@ class Credentials(object):
             ret['renewTill'] = self._handle.contents.times.renew_till * 1000
         server_data = self._handle.contents.server.contents
         ret['srealm'] = server_data.realm.as_str()
-        ret['sname'] = [server_data.data[i].as_str()
-                        for i in xrange(server_data.length)]
+        ret['sname'] = {
+            'nameType': server_data.type,
+            'nameString': [server_data.data[i].as_str()
+                           for i in xrange(server_data.length)],
+            }
         addrs = []
         i = 0
         while bool(self._handle.contents.addresses[i]):
@@ -224,8 +230,11 @@ class Ticket(object):
         ret['tktVno'] = 5
         server_data = self._handle.contents.server.contents
         ret['realm'] = server_data.realm.as_str()
-        ret['sname'] = [server_data.data[i].as_str()
-                        for i in xrange(server_data.length)]
+        ret['sname'] = {
+            'nameType': server_data.type,
+            'nameString': [server_data.data[i].as_str()
+                           for i in xrange(server_data.length)],
+            }
         ret['encPart'] = {
             'kvno': self._handle.contents.enc_part.kvno,
             'etype': self._handle.contents.enc_part.enctype,
