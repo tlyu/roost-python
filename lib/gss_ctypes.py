@@ -19,7 +19,7 @@ OM_uint32 = gss_uint32
 
 class gss_OID_desc(ctypes.Structure):
     _fields_ = [('length', OM_uint32),
-                ('elements', ctypes.c_char_p)]
+                ('elements', ctypes.c_void_p)]
 gss_OID = ctypes.POINTER(gss_OID_desc)
 
 class gss_OID_set_desc(ctypes.Structure):
@@ -29,7 +29,7 @@ gss_OID_set = ctypes.POINTER(gss_OID_set_desc)
 
 class gss_buffer_desc(ctypes.Structure):
     _fields_ = [('length', ctypes.c_size_t),
-                ('value', ctypes.c_char_p)]
+                ('value', ctypes.c_void_p)]
 
     def as_str(self):
         return ctypes.string_at(self.value, self.length)
@@ -42,7 +42,7 @@ class gss_channel_bindings_struct(ctypes.Structure):
                 ('acceptor_addrtype', OM_uint32),
                 ('acceptor_address', gss_buffer_desc),
                 ('application_data', gss_buffer_desc)]
-gss_channel_bindings_t = gss_channel_bindings_struct
+gss_channel_bindings_t = ctypes.POINTER(gss_channel_bindings_struct)
 
 gss_qop_t = OM_uint32
 gss_cred_usage_t = ctypes.c_int
@@ -111,6 +111,12 @@ GSS_S_DUPLICATE_ELEMENT = ((17) << GSS_C_ROUTINE_ERROR_OFFSET)
 GSS_S_NAME_NOT_MN = ((18) << GSS_C_ROUTINE_ERROR_OFFSET)
 GSS_S_BAD_MECH_ATTR = ((19) << GSS_C_ROUTINE_ERROR_OFFSET)
 
+GSS_S_CONTINUE_NEEDED = (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 0))
+GSS_S_DUPLICATE_TOKEN = (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 1))
+GSS_S_OLD_TOKEN = (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 2))
+GSS_S_UNSEQ_TOKEN = (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 3))
+GSS_S_GAP_TOKEN = (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 4))
+
 gss_mech_krb5 = gss_OID.in_dll(libgssapi_krb5, "gss_mech_krb5")
 
 GSS_C_NT_HOSTBASED_SERVICE = gss_OID.in_dll(libgssapi_krb5,
@@ -140,16 +146,18 @@ gss_release_cred.argtypes = (ctypes.POINTER(OM_uint32),
 gss_init_sec_context = libgssapi_krb5.gss_init_sec_context
 gss_init_sec_context.restype = OM_uint32
 gss_init_sec_context.argtypes = (ctypes.POINTER(OM_uint32),
-                                 ctypes.POINTER(gss_ctx_id_t),
                                  gss_cred_id_t,
-                                 gss_buffer_t,
+                                 ctypes.POINTER(gss_ctx_id_t),
+                                 gss_name_t,
+                                 gss_OID,
+                                 OM_uint32,
+                                 OM_uint32,
                                  gss_channel_bindings_t,
-                                 ctypes.POINTER(gss_name_t),
+                                 gss_buffer_t,
                                  ctypes.POINTER(gss_OID),
                                  gss_buffer_t,
                                  ctypes.POINTER(OM_uint32),
-                                 ctypes.POINTER(OM_uint32),
-                                 ctypes.POINTER(gss_cred_id_t))
+                                 ctypes.POINTER(OM_uint32))
 
 gss_delete_sec_context = libgssapi_krb5.gss_delete_sec_context
 gss_delete_sec_context.restype = OM_uint32

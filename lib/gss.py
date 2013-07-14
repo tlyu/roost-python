@@ -66,7 +66,8 @@ __all__ = [
     'KRB5_NT_PRINCIPAL_NAME',
     'KRB5_MECHANISM',
     'import_name',
-    'acquire_cred'
+    'acquire_cred',
+    'create_initiator',
     ]
 
 class OID(object):
@@ -75,7 +76,8 @@ class OID(object):
             self._data = ctypes.string_at(handle.elements,
                                           handle.length)
             self._handle = gss_ctypes.gss_OID_desc()
-            self._handle.elements = ctypes.c_char_p(self._data)
+            self._handle.elements = ctypes.cast(ctypes.c_char_p(self._data),
+                                                ctypes.c_void_p)
             self._handle.length = len(self._data)
         else:
             self._handle = handle
@@ -90,7 +92,8 @@ def oid_list_to_oid_set(oids):
         data = ctypes.string_at(mech._handle.elements,
                                 mech._handle.length)
         oid_set_elems[i].length = len(data)
-        oid_set_elems[i].elements = ctypes.c_char_p(data)
+        oid_set_elems[i].elements = ctypes.cast(ctypes.c_char_p(data),
+                                                ctypes.c_void_p)
         oid_set_data.append(data)
     return (oid_set, (oid_set_elems, oid_set_data))
 
@@ -105,7 +108,7 @@ def import_name(inp, oid):
     name = Name()
     inp_buf = gss_ctypes.gss_buffer_desc()
     inp_buf.length = len(inp)
-    inp_buf.value = ctypes.c_char_p(inp)
+    inp_buf.value = ctypes.cast(ctypes.c_char_p(inp), ctypes.c_void_p)
     gss_import_name(inp_buf, oid._handle, name._handle)
     return name
 
@@ -134,6 +137,9 @@ def acquire_cred(name=None,
                      cred_usage, cred._handle,
                      None, None)
     return cred
+
+def create_initiator(*args, **kwargs):
+    return InitContext(*args, **kwargs)
 
 class Name(object):
     def __init__(self):
@@ -170,3 +176,87 @@ class Credential(object):
     def __del__(self):
         if bool(self._handle):
             gss_release_cred(self._handle)
+
+class Context(object):
+    def __init__(self, cred):
+        self._cred = cred
+        self._handle = gss_ctypes.gss_ctx_id_t()
+        self._is_established = False
+        self._actual_flags = 0
+        self._mechanism = None
+
+    def __del__(self):
+        if hasattr(self, '_handle') and bool(self._handle):
+            buf = gss_ctypes.gss_buffer_desc()
+            gss_delete_sec_context(self._handle, buf)
+            gss_release_buffer(buf)
+
+    def is_established(self):
+        return self._is_established
+
+class InitContext(Context):
+    def __init__(self, target,
+                 credential=None,
+                 mechanism=None,
+                 delegate=False,
+                 mutual=False,
+                 replay=False,
+                 sequence=False,
+                 confidentiality=False,
+                 integrity=False,
+                 anonymous=False,
+                 time_req=0,
+                 channel_bindings=None):
+        if channel_bindings is not None:
+            raise NotImplemented('channel_bindings')
+        Context.__init__(self, credential)
+        self._target = target
+        self._mechanism = mechanism
+        flags = 0
+        if delegate:
+            flags |= gss_ctypes.GSS_C_DELEG_FLAG
+        if mutual:
+            flags |= gss_ctypes.GSS_C_MUTUAL_FLAG
+        if replay:
+            flags |= gss_ctypes.GSS_C_REPLAY_FLAG
+        if sequence:
+            flags |= gss_ctypes.GSS_C_SEQUENCE_FLAG
+        if confidentiality:
+            flags |= gss_ctypes.GSS_C_CONF_FLAG
+        if integrity:
+            flags |= gss_ctypes.GSS_C_INTEG_FLAG
+        if anonymous:
+            flags |= gss_ctypes.GSS_C_ANON_FLAG
+        self._flags = flags
+        self._time_req = time_req
+
+    def init_sec_context(self, token=None):
+        if token is not None:
+            token = to_str(token)
+            token_buf = gss_ctypes.gss_buffer_desc()
+            token_buf.length = len(token)
+            token_buf.value = ctypes.cast(ctypes.c_char_p(token),
+                                          ctypes.c_void_p)
+        else:
+            token_buf = None
+
+        output_buf = gss_ctypes.gss_buffer_desc()
+        actual_mech = gss_ctypes.gss_OID()
+        actual_flags = gss_ctypes.OM_uint32()
+
+        ret = gss_init_sec_context(
+            self._cred._handle if self._cred else None,
+            self._handle, self._target._handle,
+            self._mechanism._handle if self._mechanism else None,
+            self._flags, self._time_req, None, token_buf,
+            # Output params
+            actual_mech, output_buf, actual_flags, None)
+        output_token = output_buf.as_str()
+        gss_release_buffer(output_buf)
+        self._actual_flags = actual_flags.value
+        self._mechanism = OID(actual_mech.contents)
+
+        if (ret & gss_ctypes.GSS_S_CONTINUE_NEEDED) == 0:
+            self._is_established = True
+
+        return output_token
