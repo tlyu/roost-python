@@ -60,10 +60,14 @@ def to_str(obj):
         return obj.encode('utf-8')
     raise TypeError('Expected string')
 
-__all__ = ['KRB5_MECHANISM',
-           'C_NT_HOSTBASED_SERVICE',
-           'C_NT_EXPORT_NAME',
-           'import_name']
+__all__ = [
+    'C_NT_HOSTBASED_SERVICE',
+    'C_NT_EXPORT_NAME',
+    'KRB5_NT_PRINCIPAL_NAME',
+    'KRB5_MECHANISM',
+    'import_name',
+    'acquire_cred'
+    ]
 
 class OID(object):
     def __init__(self, handle, copy=False):
@@ -75,6 +79,20 @@ class OID(object):
             self._handle.length = len(self._data)
         else:
             self._handle = handle
+
+def oid_list_to_oid_set(oids):
+    oid_set = gss_ctypes.gss_OID_set_desc()
+    oid_set_elems = (gss_ctypes.gss_OID_desc * len(oids))()
+    oid_set_data = []
+    oid_set.count = len(oids)
+    oid_set.elements = oid_set_elems
+    for i, mech in enumerate(oids):
+        data = ctypes.string_at(mech._handle.elements,
+                                mech._handle.length)
+        oid_set_elems[i].length = len(data)
+        oid_set_elems[i].elements = ctypes.c_char_p(data)
+        oid_set_data.append(data)
+    return (oid_set, (oid_set_elems, oid_set_data))
 
 C_NT_HOSTBASED_SERVICE = OID(gss_ctypes.GSS_C_NT_HOSTBASED_SERVICE.contents)
 C_NT_EXPORT_NAME = OID(gss_ctypes.GSS_C_NT_EXPORT_NAME.contents)
@@ -90,6 +108,32 @@ def import_name(inp, oid):
     inp_buf.value = ctypes.c_char_p(inp)
     gss_import_name(inp_buf, oid._handle, name._handle)
     return name
+
+def acquire_cred(name=None,
+                 time_req=gss_ctypes.GSS_C_INDEFINITE,
+                 desired_mechs=None,
+                 initiate=False,
+                 accept=False):
+    if initiate:
+        if accept:
+            cred_usage = gss_ctypes.GSS_C_BOTH
+        else:
+            cred_usage = gss_ctypes.GSS_C_INITIATE
+    elif accept:
+        cred_usage = gss_ctypes.GSS_C_ACCEPT
+    else:
+        raise ValueError('Set either accept or initiate to True')
+
+    desired_mech_set = None
+    if desired_mechs is not None:
+        desired_mech_set, _storage = oid_list_to_oid_set(desired_mechs)
+
+    cred = Credential()
+    gss_acquire_cred(name._handle if name else None,
+                     time_req, desired_mech_set,
+                     cred_usage, cred._handle,
+                     None, None)
+    return cred
 
 class Name(object):
     def __init__(self):
@@ -118,3 +162,11 @@ class Name(object):
 
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, str(self))
+
+class Credential(object):
+    def __init__(self):
+        self._handle = gss_ctypes.gss_cred_id_t()
+
+    def __del__(self):
+        if bool(self._handle):
+            gss_release_cred(self._handle)
