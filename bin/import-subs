@@ -39,7 +39,7 @@ def parse_subsfile(path, sender):
         return ret
 
 def zuser_is_personal(recip):
-    return recip and recip[0] == '@'
+    return recip and recip[0] != '@'
 
 def main(args):
     parser = optparse.OptionParser(
