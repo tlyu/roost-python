@@ -58,11 +58,20 @@ def main(args):
     all_subs = []
     for arg in args:
         all_subs.extend(parse_subsfile(arg, principal_str))
-    print 'Found %d subs' % (len(all_subs),)
 
     # Alway staple zephyr creds.
     zephyr = ctx.build_principal('ATHENA.MIT.EDU', ['zephyr', 'zephyr'])
     creds = ccache.get_credentials(principal, zephyr)
+
+    # Confirm.
+    print 'About to upload %d subscriptions to %s along with' % (len(all_subs),
+                                                                 options.server)
+    print 'a copy of your %s ticket.' % (zephyr.unparse_name(),)
+    print
+    print 'This will allow Roost to send and receive zephyrgrams on your behalf.'
+    print
+    print 'Press Enter to confirm, Ctrl-C to cancel.'
+    raw_input()
 
     # Build the data.
     data = {
