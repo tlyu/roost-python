@@ -23,6 +23,9 @@ def parse_subsfile(path, sender):
             if idx >= 0:
                 line = line[:idx]
             line = line.strip(' \n')
+            # Skip blank lines.
+            if not line:
+                continue
             klass, inst, recip = line.split(',', 2)
             # Punt punts and unsubs.
             if klass and klass[0] in ('!', '-'):
