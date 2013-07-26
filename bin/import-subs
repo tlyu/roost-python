@@ -11,8 +11,9 @@ import krb5
 import roost
 
 def macro_sub(s, sender):
-    # TODO(davidben): Do we care about %host% and %canon%. I think no.
-    return s.replace('%me%', sender)
+    if s == '%me%':
+        return sender
+    return s
 
 def parse_subsfile(path, sender):
     # Modelled after zwgc's parser.
