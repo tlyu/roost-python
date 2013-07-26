@@ -42,6 +42,9 @@ def parse_subsfile(path, sender):
             ret.append((klass, inst, recip))
         return ret
 
+def zuser_is_personal(recip):
+    return recip and recip[0] != '@'
+
 def main(args):
     parser = optparse.OptionParser(
         usage='Usage: %prog [OPTIONS] [FILES]')
@@ -63,12 +66,19 @@ def main(args):
     for arg in args:
         all_subs.extend(parse_subsfile(arg, principal_str))
 
+    good_subs = []
+    for sub in all_subs:
+        if zuser_is_personal(sub[2]) and sub[2] != principal_str:
+            print 'Skipping <%s,%s,%s>; bad triple' % sub
+        else:
+            good_subs.append(sub)
+
     # Alway staple zephyr creds.
     zephyr = ctx.build_principal('ATHENA.MIT.EDU', ['zephyr', 'zephyr'])
     creds = ccache.get_credentials(principal, zephyr)
 
     # Confirm.
-    print 'About to upload %d subscriptions to %s along with' % (len(all_subs),
+    print 'About to upload %d subscriptions to %s along with' % (len(good_subs),
                                                                  options.server)
     print 'a copy of your %s ticket.' % (zephyr.unparse_name(),)
     print
@@ -82,7 +92,7 @@ def main(args):
         'subscriptions': [{ 'class': s[0],
                             'instance': s[1],
                             'recipient': s[2] }
-                          for s in all_subs],
+                          for s in good_subs],
         'credentials': creds.to_dict(),
     }
 
