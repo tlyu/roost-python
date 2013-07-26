@@ -97,7 +97,8 @@ def main(args):
     }
 
     # Get an auth token.
-    token, _expires = roost.get_auth_token(options, principal_str)
+    token, _expires = roost.get_auth_token(options, principal_str,
+                                           create_user=True)
     # And subscribe.
     roost.post(options, token, '/v1/subscribe', data)
 
