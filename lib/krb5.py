@@ -211,6 +211,7 @@ class Credentials(object):
                     'addrType': addr.addrtype,
                     'address': addr.contents_as_str()
             })
+            i += 1
         if addrs:
             ret['caddr'] = addrs
 
