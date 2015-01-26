@@ -25,6 +25,9 @@ krb5_context = ctypes.POINTER(_krb5_context)
 class _krb5_ccache(ctypes.Structure): pass
 krb5_ccache = ctypes.POINTER(_krb5_ccache)
 
+class _krb5_kt(ctypes.Structure): pass
+krb5_keytab = ctypes.POINTER(_krb5_kt)
+
 class krb5_data(ctypes.Structure):
     _fields_ = [('magic', krb5_magic),
                 ('length', ctypes.c_uint),
@@ -90,14 +93,26 @@ class krb5_enc_data(ctypes.Structure):
                 ('kvno', krb5_kvno),
                 ('ciphertext', krb5_data)]
 
-# Transcribe this later if we ever care about it.
-class krb5_enc_tkt_part(ctypes.Structure): pass
+class krb5_transited(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('tr_type', krb5_octet),
+                ('tr_contents', krb5_data)]
+
+class krb5_enc_tkt_part(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('flags', krb5_flags),
+                ('session', ctypes.POINTER(krb5_keyblock)),
+                ('client', krb5_principal),
+                ('transited', krb5_transited),
+                ('times', krb5_ticket_times),
+                ('caddrs', ctypes.POINTER(ctypes.POINTER(krb5_address))),
+                ('authorization_data', ctypes.POINTER(ctypes.POINTER(krb5_authdata)))]
 
 class krb5_ticket(ctypes.Structure):
     _fields_ = [('magic', krb5_magic),
                 ('server', krb5_principal),
                 ('enc_part', krb5_enc_data),
-                ('enc_part2', krb5_enc_tkt_part)]
+                ('enc_part2', ctypes.POINTER(krb5_enc_tkt_part))]
 krb5_ticket_ptr = ctypes.POINTER(krb5_ticket)
 
 # Don't do the conversion on return.
@@ -177,3 +192,22 @@ krb5_decode_ticket.argtypes = (ctypes.POINTER(krb5_data),
 krb5_free_ticket = libkrb5.krb5_free_ticket
 krb5_free_ticket.restype = None
 krb5_free_ticket.argtypes = (krb5_context, krb5_ticket_ptr)
+
+krb5_kt_default = libkrb5.krb5_kt_default
+krb5_kt_default.restype = krb5_error_code
+krb5_kt_default.argtypes = (krb5_context, ctypes.POINTER(krb5_keytab))
+
+krb5_kt_resolve = libkrb5.krb5_kt_resolve
+krb5_kt_resolve.restype = krb5_error_code
+krb5_kt_resolve.argtypes = (krb5_context, ctypes.c_char_p,
+                            ctypes.POINTER(krb5_keytab))
+
+krb5_kt_close = libkrb5.krb5_kt_close
+krb5_kt_close.restype = krb5_error_code
+krb5_kt_default.argtypes = (krb5_context, krb5_keytab)
+
+krb5_server_decrypt_ticket_keytab = libkrb5.krb5_server_decrypt_ticket_keytab
+krb5_server_decrypt_ticket_keytab.restype = krb5_error_code
+krb5_server_decrypt_ticket_keytab.argtypes = (krb5_context,
+                                              krb5_keytab,
+                                              ctypes.POINTER(krb5_ticket))
