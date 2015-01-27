@@ -97,7 +97,7 @@ class krb5_ticket(ctypes.Structure):
     _fields_ = [('magic', krb5_magic),
                 ('server', krb5_principal),
                 ('enc_part', krb5_enc_data),
-                ('enc_part2', krb5_enc_tkt_part)]
+                ('enc_part2', ctypes.POINTER(krb5_enc_tkt_part))]
 krb5_ticket_ptr = ctypes.POINTER(krb5_ticket)
 
 # Don't do the conversion on return.
