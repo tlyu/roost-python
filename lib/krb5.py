@@ -39,6 +39,10 @@ krb5_build_principal = check_error(krb5_ctypes.krb5_build_principal)
 krb5_get_credentials = check_error(krb5_ctypes.krb5_get_credentials)
 krb5_free_creds = check_error(krb5_ctypes.krb5_free_creds)
 krb5_free_ticket = check_error(krb5_ctypes.krb5_free_ticket)
+krb5_kt_resolve = check_error(krb5_ctypes.krb5_kt_resolve)
+krb5_kt_default = check_error(krb5_ctypes.krb5_kt_default)
+krb5_kt_close = check_error(krb5_ctypes.krb5_kt_close)
+krb5_server_decrypt_ticket_keytab = check_error(krb5_ctypes.krb5_server_decrypt_ticket_keytab)
 
 # This one is weird and takes no context. But the free function does??
 def krb5_decode_ticket(*args):
@@ -95,6 +99,26 @@ class Context(object):
         ticket = Ticket(self)
         krb5_decode_ticket(data_c, ticket._handle)
         return ticket
+
+    def kt_resolve(self, ktname):
+        keytab = Keytab(self)
+        krb5_kt_resolve(self._handle, ktname, keytab._handle)
+        return keytab
+
+class Keytab(object):
+    def __init__(self, ctx):
+        self._ctx = ctx
+        self._handle = krb5_ctypes.krb5_keytab()
+
+    def __del__(self):
+        if bool(self._handle):
+            krb5_kt_close(self._ctx._handle, self._handle)
+
+    def decrypt_tkt(self, tkt):
+        encpart_ciph = tkt._handle.contents.enc_part
+        krb5_server_decrypt_ticket_keytab(self._ctx._handle,
+                                          self._handle,
+                                          tkt._handle)
 
 class CCache(object):
     def __init__(self, ctx):
