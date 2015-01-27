@@ -177,6 +177,15 @@ class Principal(object):
     def __repr__(self):
         return '<%s: %s>' % (self.__class__.__name__, self.unparse_name())
 
+# A reference to a principal, to avoid freeing
+class PrincipalRef(Principal):
+    def __init__(self, ctx, princ):
+        self._ctx = ctx
+        self._handle = princ
+
+    def __del__(self):
+        pass
+
 class Credentials(object):
     def __init__(self, ctx):
         self._ctx = ctx
