@@ -90,8 +90,20 @@ class krb5_enc_data(ctypes.Structure):
                 ('kvno', krb5_kvno),
                 ('ciphertext', krb5_data)]
 
-# Transcribe this later if we ever care about it.
-class krb5_enc_tkt_part(ctypes.Structure): pass
+class krb5_transited(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('tr_type', krb5_octet),
+                ('tr_contents', krb5_data)]
+
+class krb5_enc_tkt_part(ctypes.Structure):
+    _fields_ = [('magic', krb5_magic),
+                ('flags', krb5_flags),
+                ('session', ctypes.POINTER(krb5_keyblock)),
+                ('client', krb5_principal),
+                ('transited', krb5_transited),
+                ('times', krb5_ticket_times),
+                ('caddrs', ctypes.POINTER(ctypes.POINTER(krb5_address))),
+                ('authorization_data', ctypes.POINTER(ctypes.POINTER(krb5_authdata)))]
 
 class krb5_ticket(ctypes.Structure):
     _fields_ = [('magic', krb5_magic),
